@@ -1,7 +1,6 @@
 let points = [];
 let delaunay, voronoi;
 let cellStates = []; // 0 for dead, 1 for alive
-let deadPoints = []; // Stores the positions of dead points
 let initialized = false;
 let overpopulationLimit, underpopulationLimit, revivalCondition;
 
@@ -90,37 +89,10 @@ function draw() {
     }
   }
 
-  // Update points and states based on the new states
-  let newPoints = [];
-  let newCellStates = [];
+  // Update states based on the new states
   for (let i = 0; i < cellStates.length; i++) {
-    if (cellStates[i] !== newStates[i]) {
-      if (newStates[i] === 1) {
-        // Cell becomes alive, restore the point from deadPoints if available
-        if (deadPoints.length > 0) {
-          let revivedPoint = deadPoints.pop();
-          newPoints.push(revivedPoint);
-        } else {
-          let newPoint = createVector(random(width), random(height));
-          newPoints.push(newPoint);
-        }
-        newCellStates.push(1);
-      } else {
-        // Cell dies, store the position in deadPoints
-        deadPoints.push(points[i]);
-      }
-    } else {
-      newPoints.push(points[i]);
-      newCellStates.push(cellStates[i]);
-    }
+    cellStates[i] = newStates[i];
   }
-
-  points = newPoints;
-  cellStates = newCellStates;
-
-  // Recalculate Voronoi diagram
-  delaunay = calculateDelaunay(points);
-  voronoi = delaunay.voronoi([0, 0, width, height]);
 
   // Apply Lloyd's relaxation
   let centroids = [];
