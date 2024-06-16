@@ -2,10 +2,12 @@ let points = [];
 let delaunay, voronoi;
 let cellStates = []; // 0 for dead, 1 for alive
 let deadPoints = []; // Stores the positions of dead points
-initialized = false;
+let initialized = false;
+let overpopulationLimit, underpopulationLimit, revivalCondition;
 
 function setup() {
-  createCanvas(600, 600);
+  let canvas = createCanvas(600, 600);
+  canvas.position(0, 0);
   frameRate(10); // Lower the frame rate to 10 frames per second
 
   // Generate points but do not initialize their states
@@ -15,6 +17,25 @@ function setup() {
     points.push(createVector(x, y));
     cellStates.push(0); // Initially all cells are dead
   }
+
+  // Create input elements for rules
+  let controls = createDiv();
+  controls.position(620, 10);
+
+  createElement('p', 'Overpopulation limit (cells die if neighbors > limit):').parent(controls);
+  overpopulationLimit = createInput('3').parent(controls);
+
+  createElement('p', 'Underpopulation limit (cells die if neighbors < limit):').parent(controls);
+  underpopulationLimit = createInput('2').parent(controls);
+
+  createElement('p', 'Revival condition (cells become alive if neighbors == condition):').parent(controls);
+  revivalCondition = createInput('3').parent(controls);
+
+  let startButton = createButton('Start Simulation');
+  startButton.parent(controls);
+  startButton.mousePressed(() => {
+    initialized = true; // Start the simulation when 'Start Simulation' is clicked
+  });
 
   delaunay = calculateDelaunay(points);
   voronoi = delaunay.voronoi([0, 0, width, height]);
@@ -42,7 +63,12 @@ function draw() {
     return; // Only draw the initial state until the user finalizes initialization
   }
 
-  // Update cell states based on modified Game of Life rules
+  // Read user-specified rules
+  let overpopLimit = int(overpopulationLimit.value());
+  let underpopLimit = int(underpopulationLimit.value());
+  let revivalCond = int(revivalCondition.value());
+
+  // Update cell states based on user-specified Game of Life rules
   let newStates = new Array(cellStates.length).fill(0);
   for (let i = 0; i < cells.length; i++) {
     let poly = cells[i];
@@ -54,10 +80,10 @@ function draw() {
       }
     }
 
-    // Apply modified Game of Life rules with slight randomness
-    if (cellStates[i] && (liveNeighbors >= 2 && liveNeighbors <= 3)) {
+    // Apply modified Game of Life rules based on user input
+    if (cellStates[i] && (liveNeighbors > underpopLimit && liveNeighbors <= overpopLimit)) {
       newStates[i] = 1; // Cell survives
-    } else if (!cellStates[i] && (liveNeighbors === 3 || (liveNeighbors === 2 && random() < 0.1))) {
+    } else if (!cellStates[i] && liveNeighbors === revivalCond) {
       newStates[i] = 1; // Cell becomes alive
     } else {
       newStates[i] = 0; // Cell dies
