@@ -3,23 +3,20 @@ let delaunay, voronoi;
 let cellStates = []; // 0 for dead, 1 for alive
 let initialized = false;
 let overpopulationLimit, underpopulationLimit, revivalCondition;
+let pointCountInput, hideModeCheckbox;
+let hideMode = false;
 
 function setup() {
-  let canvas = createCanvas(600, 600);
+  let canvas = createCanvas(1000, 1000);
   canvas.position(0, 0);
   frameRate(10); // Lower the frame rate to 10 frames per second
 
-  // Generate points but do not initialize their states
-  for (let i = 0; i < 1000; i++) {
-    let x = random(width);
-    let y = random(height);
-    points.push(createVector(x, y));
-    cellStates.push(0); // Initially all cells are dead
-  }
-
   // Create input elements for rules
   let controls = createDiv();
-  controls.position(620, 10);
+  controls.position(1020, 10);
+
+  createElement('p', 'Number of points:').parent(controls);
+  pointCountInput = createInput('1000').parent(controls);
 
   createElement('p', 'Overpopulation limit (cells die if neighbors > limit):').parent(controls);
   overpopulationLimit = createInput('3').parent(controls);
@@ -29,6 +26,28 @@ function setup() {
 
   createElement('p', 'Revival condition (cells become alive if neighbors == condition):').parent(controls);
   revivalCondition = createInput('3').parent(controls);
+
+  hideModeCheckbox = createCheckbox('Hide Mode (no point removal)', false);
+  hideModeCheckbox.parent(controls);
+  hideModeCheckbox.changed(() => {
+    hideMode = hideModeCheckbox.checked();
+  });
+
+  let randomFillButton = createButton('Randomly Fill Points');
+  randomFillButton.parent(controls);
+  randomFillButton.mousePressed(() => {
+    let pointCount = int(pointCountInput.value());
+    points = [];
+    cellStates = [];
+    for (let i = 0; i < pointCount; i++) {
+      let x = random(width);
+      let y = random(height);
+      points.push(createVector(x, y));
+      cellStates.push(random() > 0.5 ? 1 : 0); // Randomly set initial state
+    }
+    delaunay = calculateDelaunay(points);
+    voronoi = delaunay.voronoi([0, 0, width, height]);
+  });
 
   let startButton = createButton('Start Simulation');
   startButton.parent(controls);
@@ -85,14 +104,38 @@ function draw() {
     } else if (!cellStates[i] && liveNeighbors === revivalCond) {
       newStates[i] = 1; // Cell becomes alive
     } else {
-      newStates[i] = 0; // Cell dies
+      newStates[i] = 0; // Cell dies or hides
     }
   }
 
-  // Update states based on the new states
+  // Update points and states based on the new states
+  let newPoints = [];
+  let newCellStates = [];
   for (let i = 0; i < cellStates.length; i++) {
-    cellStates[i] = newStates[i];
+    if (cellStates[i] !== newStates[i]) {
+      if (newStates[i] === 1) {
+        // Cell becomes alive, restore the point
+        newPoints.push(points[i]);
+        newCellStates.push(1);
+      } else {
+        // Cell dies or hides
+        if (hideMode) {
+          newPoints.push(points[i]);
+          newCellStates.push(0);
+        }
+      }
+    } else {
+      newPoints.push(points[i]);
+      newCellStates.push(cellStates[i]);
+    }
   }
+
+  points = newPoints;
+  cellStates = newCellStates;
+
+  // Recalculate Voronoi diagram
+  delaunay = calculateDelaunay(points);
+  voronoi = delaunay.voronoi([0, 0, width, height]);
 
   // Apply Lloyd's relaxation
   let centroids = [];
